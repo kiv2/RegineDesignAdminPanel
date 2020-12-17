@@ -1,0 +1,293 @@
+﻿@{
+    ViewData["Title"] = "Panel";
+}
+<div class="modal show" v-if="deleteWarning"style="display:block; background:rgba(0, 0, 0, 0.5);" data-backdrop="static" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">Warning!</h5>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete?
+                Once deleted there is no turning back!
+            </div>
+            <div class="modal-footer">
+                <button type="button" @@click="deleteWarning = false" class="btn btn-secondary">Close</button>
+                <button type="button" v-if="mulitpleFolderToDelete.length == 0" @@click="confirmDeleteFolder()" class="btn btn-danger">Delete</button>
+                <button type="button" v-if="mulitpleFolderToDelete.length > 0" @@click="multipleDelete()" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal show" v-if="renameModal" style="display:block; background:rgba(0, 0, 0, 0.5);" data-backdrop="static" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">Rename</h5>
+            </div>
+            <div class="modal-body">
+                <h5 class="card-title">
+                    <input class="form-control" v-model="newFolderName" type="text" placeholder="Folder Name" required>
+                </h5>
+                <div class="invalid-feedback" style="display:inherit;">{{errorRenameFolderText}}</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button"  @@click="renameModal = false" class="btn btn-outline-danger">Close</button>
+                <button type="button" :disabled="disableRenameFolderButton" @@click="confirmRenameFolder()" class="btn btn-outline-info">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center">
+    <h1 class="display-4">Welcome Admin</h1>
+    <div class="row">
+        <a href="."><span>/Root</span></a>
+    </div>
+    <br />
+
+    <div class="row">
+        <div class="col" v-if="!multipleFolderDelete && !createNewFolder">
+            <button type="button" @@click="createNewFolder=true" class="btn btn-outline-primary">Create New Category</button>
+        </div>
+        <div class="col" v-if="!multipleFolderDelete && !createNewFolder">
+            <button type="button" @@click="multipleFolderDelete=true" class="btn btn-outline-danger">Delete Mutiple Category</button>
+        </div>
+        <div class="col" v-if="createNewFolder">
+            <button type="button" @@click="createNewFolder=false" class="btn btn-outline-danger">Cancel</button>
+        </div>
+        <div class="col" v-if="multipleFolderDelete">
+            <button type="button" @@click="multipleFolderDelete=false" class="btn btn-outline-primary">Cancel</button>
+        </div>
+        <div class="col" v-if="multipleFolderDelete">
+            <button type="button" :disabled="mulitpleFolderToDelete.length == 0" @@click="deleteWarning=true" class="btn btn-outline-danger">Delete</button>
+        </div>
+    </div>
+    <br />
+    <div v-if="isLoading">
+        <br />
+        <br />
+        <br />
+        <br />
+        <br />
+        <div class="spinner-grow" style="width: 5rem; height: 5rem;" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+    <div class="row">
+        <div v-if="createNewFolder" class="col-sm-3 mt-5">
+            <div class="card">
+                <img class="card-img-top" style="margin: auto; max-height: 180px; max-width: 180px;" src="~/image/folder.png" alt="Card image cap">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <input class="form-control" v-model="createNewFolderName" type="text" placeholder="Folder Name" required>
+                    </h5>
+                    <div class="invalid-feedback" style="display:inherit;">{{errorNewFolderText}}</div>
+                </div>
+            </div>
+            <div class="card-footer text-muted">
+                <button type="button" @@click="createNewFolder=false" class="btn btn-outline-danger">Cancel</button>
+                <button type="button" :disabled="disableCreateNewFolderButton" @@click="createFolder()" class="btn btn-outline-info">Create</button>
+            </div>
+        </div>
+        <div v-if="folders.length!=0 && folders != null" class="col-sm-3 mt-5" v-for="oneFolder of folders">
+            <a :href="'/Category/'+oneFolder">
+                <div class="card">
+                    <img class="card-img-top" style="margin: auto; max-height: 180px; max-width: 180px;" src="~/image/folder.png" alt="Card image cap">
+                    <div class="card-body">
+                        <h5 class="card-title">{{oneFolder}}</h5>
+                    </div>
+                </div>
+            </a>
+            <div class="card-footer text-muted" v-if="!multipleFolderDelete">
+                <button type="button" @@click="openRenameModal(oneFolder)" class="btn btn-outline-info">Rename</button>
+                <button type="button" class="btn btn-outline-danger" @@click="deleteFolderConfirmation(oneFolder)">Delete</button>
+            </div>
+            <div class="card-footer text-muted" v-if="multipleFolderDelete">
+                <button type="button" v-if="mulitpleFolderToDelete.indexOf(oneFolder) == -1" @@click="mulitpleFolderToDelete.push(oneFolder)" class="btn btn-outline-danger">Select</button>
+                <button type="button" v-if="mulitpleFolderToDelete.indexOf(oneFolder) >= 0" @@click="removeFromArray(mulitpleFolderToDelete, oneFolder)" class="btn btn-danger">Deselect</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section scripts {
+
+    <script>
+        const app = new Vue({
+            el: '#app',
+            data: {
+                isLoading: false,
+                folders: [],
+                //Create folder portion
+                createNewFolderName: "",
+                createNewFolder: false,
+                errorNewFolderText: "",
+                disableCreateNewFolderButton: true,
+                //End of Create Folder
+
+                //Delete folder portion
+                deleteWarning:false,
+                folderToDelete: "",
+                //End of Delete Folder
+
+                //Delete Multiple Folder portion
+                multipleFolderDelete: false,
+                mulitpleFolderToDelete: [],
+                //End of Delete Multiple Folder
+
+                //Rename Folder portion
+                newFolderName: "",
+                oldFolderName: "",
+                errorRenameFolderText: "",
+                disableRenameFolderButton: true,
+                renameModal: false,
+                //End of Rename Folder
+
+            },
+            async mounted() {
+                this.isLoading = true;
+                Promise.all([this.getAllFolders()])
+                    .then(() => {
+                        this.isLoading = false;
+                    }).catch(() => {
+                        this.isLoading = false;
+                    })
+            },
+            methods: {
+                async getAllFolders() {
+                    this.folders = [];
+                    this.files = [];
+                    await axios.get('/local/PanelApi/GetAllFolder')
+                        .then(({ data }) => {
+                            data.forEach(oneFolder => this.folders.push(oneFolder.slice(0, -1)));
+                        })
+                        .catch(error => {
+                            console.log(error);
+                        });
+                },
+                async createFolder() {
+                    this.isLoading = true;
+                    this.createNewFolder = false;
+                    this.folders = [];
+                    await axios.post('/local/PanelApi/CreateFolder/' + this.createNewFolderName)
+                        .then(({ data }) => {
+                            console.log(data)
+                            location.reload();
+                        })
+                        .catch(error => {
+                            console.log(error);
+                            location.reload();
+                        });
+                    this.newFolderName = "";
+                },
+
+                async deleteFolder(deleteFolderName) {
+                    this.isLoading = true;
+                    await axios.delete('/local/PanelApi/DeleteFolder/' + deleteFolderName)
+                        .then(({ data }) => {
+                            return true
+                        })
+                        .catch(error => {
+                            console.log(error);
+                            return false
+                        });
+                },
+                async renameFolder() {
+                    this.isLoading = true;
+                    this.folders = [];
+                    this.files = [];
+                    await axios.put('/local/PanelApi/RenameFolder/' + this.oldFolderName + '/' + this.newFolderName)
+                        .then(({ data }) => {
+                            this.isLoading = false;
+                            console.log(data)
+                            location.reload();
+                        })
+                        .catch(error => {
+                            this.isLoading = false;
+                            console.log(error);
+                            location.reload();
+                        });
+
+                },
+                openRenameModal(oldFolderName) {
+                    this.renameModal = true;
+                    this.oldFolderName = oldFolderName;
+                },
+                confirmRenameFolder() {
+                    this.renameFolder()
+                    this.renameModal = false;
+                },
+                deleteFolderConfirmation(folderName) {
+                    this.deleteWarning = true;
+                    this.folderToDelete = folderName
+                },
+                removeFromArray(chosenArray, valueToRemove) {
+                    const index = chosenArray.indexOf(valueToRemove);
+                    if (index > -1) {
+                        chosenArray.splice(index, 1);
+                    }
+                },
+                async confirmDeleteFolder() {
+                    this.deleteWarning = false;
+                    this.folders = []
+                    await this.deleteFolder(this.folderToDelete).then(() => {
+                        location.reload();
+                    })
+                },
+                multipleDelete() {
+                    this.deleteWarning = false;
+                    let allDeleteFunction = []
+                    this.folders = []
+                    this.mulitpleFolderToDelete.forEach(oneName => allDeleteFunction.push(this.deleteFolder(oneName)));
+                    Promise.all(allDeleteFunction).then(() => {
+                        location.reload();
+                    }).catch(() => {
+                        location.reload();
+                    })
+                }
+            },
+            watch: {
+                createNewFolder(newVal) {
+                    this.createNewFolder = newVal;
+                    this.createNewFolderName = "";
+                    this.errorNewFolderText = "";
+                    this.disableCreateNewFolderButton = true;
+                },
+                multipleFolderDelete(newVal) {
+                    this.multipleFolderDelete = newVal;
+                    this.mulitpleFolderToDelete = [];
+                },
+                newFolderName(newVal) {
+                    if (newVal.trim() === '') {
+                        this.errorRenameFolderText = "Folder Name cannot be emtpy!"
+                        this.disableRenameFolderButton = true;
+                    } else {
+                        this.errorRenameFolderText = ""
+                        this.disableRenameFolderButton = false;
+                    }
+                    this.newFolderName = newVal
+                },
+                renameModal(newVal) {
+                    this.renameModal = newVal;
+                    this.newFolderName = "";
+                    this.errorRenameFolderText = "";
+                    this.disableRenameFolderButton = true;
+                },
+                createNewFolderName(newVal) {
+                    if (newVal.trim() === '') {
+                        this.errorNewFolderText = "Folder Name cannot be emtpy!"
+                        this.disableCreateNewFolderButton = true;
+                    } else {
+                        this.errorNewFolderText = ""
+                        this.disableCreateNewFolderButton = false;
+                    }
+                    this.createNewFolderName = newVal
+                },
+            }
+        })
+
+    </script>
+}

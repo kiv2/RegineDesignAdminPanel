@@ -1,0 +1,276 @@
+﻿@{
+    ViewData["Title"] = "Panel";
+}
+<div class="modal show" v-if="deleteWarning"style="display:block; background:rgba(0, 0, 0, 0.5);" data-backdrop="static" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">Warning!</h5>
+            </div>
+            <div class="modal-body"> 
+                Are you sure you want to delete?
+                Once deleted there is no turning back!
+            </div>
+            <div class="modal-footer">
+                <button type="button" @@click="deleteWarning = false" class="btn btn-secondary">Close</button>
+                <button type="button" v-if="multipleFileToDelete.length == 0" @@click="confirmDeleteFile()" class="btn btn-danger">Delete</button>
+                <button type="button" v-if="multipleFileToDelete.length > 0" @@click="multipleDelete()" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center">
+    <h1 class="display-4">Welcome Admin</h1>
+    <div class="row" v-if="!uploading">
+        <a href="/Panel">/Root</a>
+        <a href="javascript:window.location.href=window.location.href"><span>/{{path}}</span></a>
+    </div>
+    <br />
+    <div class="row" v-if="!uploading">
+        <div class="col" v-if="!multipleFileDelete">
+            <button type="button" @@click="multipleFileDelete=true" class="btn btn-outline-danger">Delete Mutiple File</button>
+        </div>
+        <div class="col" v-if="multipleFileDelete">
+            <button type="button" @@click="multipleFileDelete=false" class="btn btn-outline-primary">Cancel</button>
+        </div>
+        <div class="col" v-if="multipleFileDelete">
+            <button type="button" :disabled="multipleFileToDelete.length == 0" @@click="deleteWarning=true" class="btn btn-outline-danger">Delete</button>
+        </div>
+    </div>
+
+
+    <br />
+    <div v-show="!multipleFileDelete">
+        <form :action="urlToSend"
+              id="myDropzone"
+              ref="myDropzone"
+              class="dropzone"
+              method="post"
+              enctype="multipart/form-data">
+        </form>
+        <br />
+        <div class="row" v-if="!uploading">
+            <div class="col">
+                <button type="button" :disabled="myDropzone == null || myDropzone.files.length == 0" @@click="removeAllFiles()" class="btn btn-outline-danger">Clear</button>
+            </div>
+            <div class="col">
+
+                <button class="btn btn-outline-primary" @@click="uploadFiles()" :disabled="myDropzone == null || myDropzone.files.length == 0" role="button">Upload</button>
+            </div>
+        </div>
+    </div>
+    <br />
+    <div v-if="isLoading">
+        <br />
+        <br />
+        <br />
+        <br />
+        <br />
+        <div class="spinner-grow" style="width: 5rem; height: 5rem;" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+    <div class="row">
+        <div v-if="files.length!=0 && files != null" class="col-sm-3 mt-5" v-for="oneFile of files">
+            <div class="card">
+                <img class="card-img-top" style="margin: auto; max-height: 180px; max-width: 180px;" :src="oneFile.mediaLink" alt="Card image cap">
+                <div class="card-body">
+                    <h5 class="card-title">{{oneFile.name}}</h5>
+                </div>
+            </div>
+            <div class="card-footer text-muted" v-if="!multipleFileDelete">
+                <a class="btn btn-outline-primary" target="_blank" :href="oneFile.mediaLink" con role="button">Download</a>
+                <button type="button" class="btn btn-outline-danger" @@click="deleteFileConfirmation(oneFile.name)">Delete</button>
+            </div>
+            <div class="card-footer text-muted" v-if="multipleFileDelete">
+                <button type="button" v-if="multipleFileToDelete.indexOf(oneFile.name) == -1" @@click="multipleFileToDelete.push(oneFile.name)" class="btn btn-outline-danger">Select</button>
+                <button type="button" v-if="multipleFileToDelete.indexOf(oneFile.name) >= 0" @@click="removeFromArray(multipleFileToDelete, oneFile.name)" class="btn btn-danger">Deselect</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+
+    <script>
+        const app = new Vue({
+            el: '#app',
+            data: {
+                isLoading: false,
+                files: [],
+                path: '@ViewData["Category"]', 
+                urlToSend: "/local/PanelApi/SaveUploadedFile/"+'@ViewData["Category"]',
+
+                //Delete folder portion
+                deleteWarning:false,
+
+                //Multiple File Delete portion
+                multipleFileDelete: false,
+                multipleFileToDelete: [],
+                //End of Multiple File Delete
+
+                myDropzone: null,
+                uploading:false,
+            },
+            async mounted() {
+                this.isLoading = true;
+                Dropzone.autoDiscover = false;
+                this.initializeDropzone();
+                Promise.all([this.getInFolders()])
+                    .then(() => {
+                        this.isLoading = false;
+                    }).catch(() => {
+                        this.isLoading = false;
+                    })
+            },
+            methods: {
+                initializeDropzone() {
+                    this.myDropzone = new Dropzone(this.$refs.myDropzone, {
+                        addRemoveLinks: true,
+                        autoProcessQueue: false,
+                        acceptedFiles: ".png,.jpg,.gif,.bmp,.jpeg",
+                        uploadMultiple: false,
+                        paramName: "file",
+                        parallelUploads: 100,
+                        maxFiles: 100,
+                        dictDefaultMessage: "Drop files here or Click to Upload",
+                        init: function () {
+                            var self = this;
+                            // config
+                            self.options.addRemoveLinks = true;
+                            self.options.dictRemoveFile = "Delete";
+                            //New file added
+                            self.on("addedfile", function (file) {
+                                console.log('new file added ', file);
+                                $('.dz-success-mark').hide();
+                                $('.dz-error-mark').hide();
+                            });
+                            self.on("processing", function (file) {
+                                self.options.url = app.urlToSend;
+                            });
+                            // Send file starts
+                            self.on("sending", function (file) {
+                                console.log('upload started', file);
+                                $('.meter').show();
+                            });
+
+                            // File upload Progress
+                            self.on("totaluploadprogress", function (progress) {
+                                console.log("progress ", progress);
+                                $('.roller').width(progress + '%');
+                            });
+
+                            self.on("queuecomplete", function (progress) {
+                                $('.meter').delay(999).slideUp(999);
+                            });
+
+                            //$('#Submit').on("click", function (e) {
+                            //    e.preventDefault();
+                            //    e.stopPropagation();
+                            //    // Validate form here if needed
+
+                            //    if (self.getQueuedFiles().length > 0) {
+                            //        self.processQueue();
+
+
+                            //    } else {
+                            //        self.uploadFiles([]);
+                            //        $('#myDropzone').submit();
+                            //    }
+
+                            //});
+                            self.on("success", function (file, response) {
+                                console.log(response);
+                                self.removeFile(file);
+                                if (self.files.length == 0) {
+                                    location.reload();
+                                }
+                            });
+                            self.on("successmultiple", function (files, response) {
+                                // Gets triggered when the files have successfully been sent.
+                                // Redirect user or notify of success.
+                                files.forEach(oneFile => self.removeFile(oneFile));
+                                console.log(response)
+                            });
+                        }
+                    });
+                },
+                uploadFiles() {
+                    if (this.myDropzone != null) {
+                        this.uploading = true;
+                        this.myDropzone.processQueue();
+                    }
+                },
+                removeAllFiles() {
+                    if (this.myDropzone != null) {
+                        this.myDropzone.removeAllFiles();
+                    }
+                },
+                async getInFolders() {
+                    this.isLoading = true;
+                    this.files = [];
+                    this.uploading = false;
+                    await axios.get('/local/PanelApi/GetAllObjectInFolder/' + this.path)
+                        .then(({ data }) => {
+                            this.isLoading = false;
+                            console.log(data)
+                            this.files = data.files;
+                        })
+                        .catch(error => {
+                            this.isLoading = false;
+                            console.log(error);
+                        });
+                },
+                removeFromArray(chosenArray, valueToRemove) {
+                    const index = chosenArray.indexOf(valueToRemove);
+                    if (index > -1) {
+                        chosenArray.splice(index, 1);
+                    }
+                },
+                async deleteFile(deleteFileName) {
+                    this.isLoading = true;
+                    await axios.delete('/local/PanelApi/DeleteFile/' + this.path + '/' + deleteFileName)
+                        .then(({ data }) => {
+                            return true
+                        })
+                        .catch(error => {
+                            console.log(error);
+                            return false
+                        });
+                },
+                deleteFileConfirmation(fileName) {
+                    this.deleteWarning = true;
+                    this.fileToDelete = fileName
+                },
+                async confirmDeleteFile() {
+                    this.deleteWarning = false;
+                    this.files = []
+                    await this.deleteFile(this.fileToDelete).then(() => {
+                        location.reload();
+                    })
+                },
+                multipleDelete() {
+                    this.deleteWarning = false;
+                    let allDeleteFunction = []
+                    this.files = []
+                    this.multipleFileToDelete.forEach(oneName => allDeleteFunction.push(this.deleteFile(oneName)));
+                    Promise.all(allDeleteFunction).then(() => {
+                        location.reload();
+                        this.multipleFileToDelete = [];
+                    }).catch(() => {
+                       location.reload();
+                       this.multipleFileToDelete = [];
+                    })
+                }
+            },
+            watch: {
+                multipleFileDelete(newVal) {
+                    this.multipleFileDelete = newVal;
+                    this.multipleFileToDelete = [];
+                },
+            }
+        })
+
+    </script>
+}
