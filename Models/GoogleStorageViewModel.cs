@@ -17,6 +17,7 @@ namespace RegineDesignAdmin.Models
         public string Id { get; set; }
         public string Name { get; set; }
         public string MediaLink { get; set; }
+        public string VideoLink { get; set; }
 
     }
 }

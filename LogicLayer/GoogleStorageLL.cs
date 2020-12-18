@@ -104,6 +104,23 @@ namespace RegineDesignAdmin.LogicLayer
             }
         }
 
+        public async Task<bool> AddMetadataToFile(string fileName, string videoUrl)
+        {
+            try
+            {
+                var item = await client.GetObjectAsync(selectedBucket, fileName);
+                item.Metadata = new Dictionary<string, string>();
+                item.Metadata.Add("video", videoUrl);
+                await client.UpdateObjectAsync(item);
+                return true;
+
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+        }
+
         public async Task<bool> UpdateFolderName(string oldFolderName, string newFolderName)
         {
             try
@@ -165,6 +182,7 @@ namespace RegineDesignAdmin.LogicLayer
                 return false;
             }
         }
+
         public async Task<GoogleStorageViewModel> GetAllObjectInFolderAsync(string path)
         {
             try
@@ -192,6 +210,15 @@ namespace RegineDesignAdmin.LogicLayer
                             f.Id = item.Id.ToString();
                             f.MediaLink = await urlSigner.SignAsync(selectedBucket, item.Name, TimeSpan.FromDays(1));
                             f.Name = item.Name.Replace(fullPath, "").ToString();
+                            if (item.Metadata != null && item.Metadata.ContainsKey("video"))
+                            {
+                                item.Metadata.TryGetValue("video", out string videoLink);
+                                f.VideoLink = videoLink;
+                            }
+                            else {
+                                f.VideoLink = null;
+                            }
+
                             vm.Files.Add(f);
                         }
                     }

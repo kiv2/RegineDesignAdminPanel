@@ -19,7 +19,25 @@
         </div>
     </div>
 </div>
-
+<div class="modal show" v-if="addVideoModal" style="display:block; background:rgba(0, 0, 0, 0.5);" data-backdrop="static" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">Video URL</h5>
+            </div>
+            <div class="modal-body">
+                <h5 class="card-title">
+                    <input class="form-control" v-model="videURL" type="text" placeholder="Video URL" required>
+                </h5>
+                <div class="invalid-feedback" style="display:inherit;">{{errorVideoURLText}}</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" @@click="addVideoModal = false" class="btn btn-outline-danger">Close</button>
+                <button type="button" :disabled="disableAddVideoButton" @@click="confirmAddVideo()" class="btn btn-outline-info">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="text-center">
     <h1 class="display-4">Welcome Admin</h1>
     <div class="row" v-if="!uploading">
@@ -81,6 +99,7 @@
             </div>
             <div class="card-footer text-muted" v-if="!multipleFileDelete">
                 <a class="btn btn-outline-primary" target="_blank" :href="oneFile.mediaLink" con role="button">Download</a>
+                <button type="button" class="btn btn-outline-info" @@click="openAddVideoModal(oneFile.name)">Link Video</button>
                 <button type="button" class="btn btn-outline-danger" @@click="deleteFileConfirmation(oneFile.name)">Delete</button>
             </div>
             <div class="card-footer text-muted" v-if="multipleFileDelete">
@@ -99,7 +118,7 @@
             data: {
                 isLoading: false,
                 files: [],
-                path: '@ViewData["Category"]', 
+                path: '@ViewData["Category"]',
                 urlToSend: "/local/PanelApi/SaveUploadedFile/"+'@ViewData["Category"]',
 
                 //Delete folder portion
@@ -111,7 +130,13 @@
                 //End of Multiple File Delete
 
                 myDropzone: null,
-                uploading:false,
+                uploading: false,
+
+                addVideoModal: false,
+                videURL: '',
+                errorVideoURLText: '',
+                disableAddVideoButton: true,
+                chosenFile: '',
             },
             async mounted() {
                 this.isLoading = true;
@@ -262,12 +287,46 @@
                        location.reload();
                        this.multipleFileToDelete = [];
                     })
-                }
+                },
+                openAddVideoModal(fileName) {
+                    this.chosenFile = fileName;
+                    this.addVideoModal = true;
+                },
+                async confirmAddVideo() {
+                    this.isLoading = true;
+                    this.addVideoModal = false;
+                    this.files = []
+                    let encodedURL = encodeURIComponent(this.videURL);
+                    await axios.put('/local/PanelApi/AddVideoLink/' + this.path + '/' + this.chosenFile + '/' + encodedURL)
+                        .then(({ data }) => {
+                            location.reload();
+                        })
+                        .catch(error => {
+                            location.reload();
+                        });
+                },
+                
             },
             watch: {
                 multipleFileDelete(newVal) {
                     this.multipleFileDelete = newVal;
                     this.multipleFileToDelete = [];
+                },
+                addVideoModal(newVal) {
+                    this.addVideoModal = newVal;
+                    this.videURL = "";
+                    this.errorVideoURLText = "";
+                    this.disableAddVideoButton = true;
+                },
+                videURL(newVal) {
+                    if (newVal.trim() === '') {
+                        this.errorVideoURLText = "Video URL cannot be emtpy!"
+                        this.disableAddVideoButton = true;
+                    } else {
+                        this.errorVideoURLText = ""
+                        this.disableAddVideoButton = false;
+                    }
+                    this.videURL = newVal
                 },
             }
         })

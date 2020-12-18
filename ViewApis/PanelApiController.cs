@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace RegineDesignAdmin.ViewApis
 {
@@ -74,6 +75,14 @@ namespace RegineDesignAdmin.ViewApis
             else {
                 return NotFound();
             }
+        }
+
+        [HttpPut("{folderName}/{file}/{videoURL}")]
+        public async Task<IActionResult> AddVideoLink(string folderName, string file, string videoURL)
+        {
+            string decodedUrl = HttpUtility.UrlDecode(videoURL);
+            var result = await _googleStorageLL.AddMetadataToFile(folderName + '/' + file, decodedUrl);
+            return Ok(result);
         }
     }
 }
