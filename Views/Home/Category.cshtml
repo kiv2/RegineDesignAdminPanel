@@ -297,12 +297,13 @@
                     this.addVideoModal = false;
                     this.files = []
                     let encodedURL = encodeURIComponent(this.videURL);
+                    console.log(encodedURL)
                     await axios.put('/local/PanelApi/AddVideoLink/' + this.path + '/' + this.chosenFile + '/' + encodedURL)
                         .then(({ data }) => {
                             location.reload();
                         })
                         .catch(error => {
-                            location.reload();
+                            console.log(error)
                         });
                 },
                 
