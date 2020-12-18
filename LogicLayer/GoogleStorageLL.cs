@@ -117,7 +117,7 @@ namespace RegineDesignAdmin.LogicLayer
             }
             catch (Exception e)
             {
-]                return false;
+                return false;
             }
         }
 
