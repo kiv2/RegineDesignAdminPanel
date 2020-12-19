@@ -77,8 +77,8 @@ namespace RegineDesignAdmin.ViewApis
             }
         }
 
-        [HttpPut("{folderName}/{file}/{videoURL}")]
-        public async Task<IActionResult> AddVideoLink(string folderName, string file, string videoURL)
+        [HttpPut("{folderName}/{file}")]
+        public async Task<IActionResult> AddVideoLink(string folderName, string file,[FromForm] string videoURL)
         {
             string decodedUrl = HttpUtility.UrlDecode(videoURL);
             var result = await _googleStorageLL.AddMetadataToFile(folderName + '/' + file, decodedUrl);

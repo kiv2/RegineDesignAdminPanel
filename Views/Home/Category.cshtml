@@ -95,6 +95,8 @@
                 <img class="card-img-top" style="margin: auto; max-height: 180px; max-width: 180px;" :src="oneFile.mediaLink" alt="Card image cap">
                 <div class="card-body">
                     <h5 class="card-title">{{oneFile.name}}</h5>
+                    <p v-if="oneFile.videoLink == null" class="card-text">There is no video attached</p>
+                    <a :href="oneFile.videoLink" target="_blank"><p v-if="oneFile.videoLink != null" class="card-text">{{oneFile.videoLink}}</p></a>
                 </div>
             </div>
             <div class="card-footer text-muted" v-if="!multipleFileDelete">
@@ -297,9 +299,14 @@
                     this.addVideoModal = false;
                     this.files = []
                     let encodedURL = encodeURIComponent(this.videURL);
-                    console.log(encodedURL)
-                    await axios.put('/local/PanelApi/AddVideoLink/' + this.path + '/' + this.chosenFile + '/' + encodedURL)
-                        .then(({ data }) => {
+                    var formData = new FormData();
+                    formData.append("videoUrl", encodedURL);
+                    await axios({
+                        method: 'put',
+                        url: '/local/PanelApi/AddVideoLink/' + this.path + '/' + this.chosenFile,
+                        data: formData,
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    }).then(({ data }) => {
                             location.reload();
                         })
                         .catch(error => {
