@@ -31,8 +31,11 @@ namespace RegineDesignAdmin.ViewApis
                 if (!path.Contains("Secret"))
                 {
                     var allItemInFolder = await _googleStorageLL.GetAllObjectInFolderAsync(path);
-                    vm.Folders.Add(path);
-                    vm.AllFiles.Add(path, allItemInFolder.Files);
+                    if (allItemInFolder.Files.Count != 0)
+                    {
+                        vm.Folders.Add(path);
+                        vm.AllFiles.Add(path, allItemInFolder.Files);
+                    }
                 }
             }
             return Ok(vm);
